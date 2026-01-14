@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Link to QR Code</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-gray-100">
+  <div class="bg-white p-6 rounded shadow-md w-full max-w-md text-center">
+    <h1 class="text-2xl font-bold mb-4">Link to QR Code</h1>
+    <input id="linkInput" type="text" placeholder="Enter link" class="w-full p-2 border rounded mb-4" />
+    <button onclick="generateQR()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Generate</button>
+    <div id="qrContainer" class="mt-6"></div>
+  </div>
+
+  <script>
+    function generateQR() {
+      const link = document.getElementById('linkInput').value.trim();
+      const qrContainer = document.getElementById('qrContainer');
+
+      if (!link) {
+        qrContainer.innerHTML = "<p class='text-red-500'>Please enter a link.</p>";
+        return;
+      }
+
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(link)}`;
+      qrContainer.innerHTML = `
+        <img id="qrImage" src="${qrUrl}" alt="QR Code" class="mx-auto mb-4"/>
+        <button onclick="downloadQR()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Telecharger</button>
+      `;
+    }
+
+    function downloadQR() {
+      const qrImage = document.getElementById('qrImage');
+      const link = document.createElement('a');
+      link.href = qrImage.src;
+      link.download = 'qr-code.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>

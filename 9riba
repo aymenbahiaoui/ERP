@@ -1,0 +1,136 @@
+<?php
+
+namespace App\Imports;
+
+use App\Models\CaiseModel;
+use App\Models\CaModel;
+use App\Models\Caisse;
+use Maatwebsite\Excel\Concerns\ToModel;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+
+class CaImport implements ToModel, WithHeadingRow
+{
+    private $processedInvoices = [];
+
+    public function model(array $row)
+    {
+        if (empty($row['date']) || !isset($row['qte_cde_unite']) || !is_numeric($row['qte_cde_unite'])) {
+            Log::info('Ligne ignorée : date ou quantité invalide.', $row);
+            return null;
+        }
+
+        $date = null;
+        try {
+            $date = is_numeric($row['date']) 
+                ? $this->transformDate($row['date'])
+                : Carbon::parse($row['date'])->format('Y-m-d');
+        } catch (\Exception $e) {
+            Log::error("Erreur de conversion de date : " . $e->getMessage(), $row);
+            return null;
+        }
+
+        $numeroFacture = $row['nfacture'] ?? $row['numerofacture'] ?? $row['numero_facture'] ?? null;
+
+        if ($numeroFacture) {
+            $exists = CaModel::where('date', $date)
+                ->where('numero_facture', $numeroFacture)
+                ->where('code_client', $row['code_client'] ?? null)
+                ->exists();
+
+            if ($exists) {
+                Log::info("Ligne ignorée : enregistrement déjà existant.", $row);
+                return null;
+            }
+        }
+
+        // Create the CaModel record first
+        $caModel = new CaModel([
+            'date' => $date,
+            'distributeur' => $row['distributeur'] ?? null,
+            'canal' => $row['canal'] ?? null,
+            'vendeur' => $row['vendeur'] ?? null,
+            'code_client' => $row['code_client'] ?? null,
+            'client' => $row['client'] ?? null,
+            'secteur' => $row['secteur'] ?? null,
+            'tournee' => $row['tournee'] ?? null,
+            'ville' => $row['ville'] ?? null,
+            'categorie_client' => $row['categorie_client'] ?? null,
+            'numero_facture' => $numeroFacture,
+            'numero_livraison' => $row['n_livraison'] ?? $row['numero_livraison'] ?? null,
+            'famille' => $row['famille'] ?? null,
+            'categorie' => $row['categorie'] ?? null,
+            'code_article' => $row['code_article'] ?? null,
+            'designation' => $row['designation'] ?? null,
+            'qte_cde' => $row['qte_cde_unite'] ?? null,
+            'valeur_cde' => $row['valeur_cde'] ?? null,
+            'qte_fact' => $row['qte_fact_unite'] ?? null,
+            'valeur_fact' => $row['valeur_fact'] ?? null,
+            'qte_cde_retour' => $row['qte_cde_retour_unite'] ?? null,
+            'valeur_cde_retour' => $row['valeur_cde_retour'] ?? null,
+            'qte_fact_retour' => $row['qte_fact_retour_unite'] ?? null,
+            'valeur_fact_retour' => $row['valeur_fact_retour'] ?? null,
+            'gratuite' => $row['gratuite'] ?? null,
+        ]);
+
+        // Process the Caisse record
+        $this->processCaisseRecord($date, $numeroFacture, $row);
+
+        Log::info("Ligne insérée avec succès.", $row);
+
+        return $caModel;
+    }
+
+    protected function processCaisseRecord($date, $numeroFacture, $row)
+    {
+        if (!$numeroFacture) {
+            return;
+        }
+
+        // If we've already processed this invoice in this import batch, skip
+        if (isset($this->processedInvoices[$numeroFacture])) {
+            return;
+        }
+
+        // Check if this invoice already exists in the database
+        $existingCaisse = CaiseModel::where('numero_facture', $numeroFacture)->first();
+
+        if ($existingCaisse) {
+            $this->processedInvoices[$numeroFacture] = true;
+            return;
+        }
+
+        // Calculate the total value for this invoice
+        $totalValue = CaModel::where('numero_facture', $numeroFacture)
+            ->sum('valeur_fact');
+
+        // If we're importing multiple rows for the same invoice, the sum might be 0
+        // because the other rows haven't been inserted yet, so we'll use the current row's value
+        if ($totalValue == 0 && isset($row['valeur_fact'])) {
+            $totalValue = $row['valeur_fact'];
+        }
+
+        // Create the Caisse record
+        CaiseModel::create([
+            'date' => $date,
+            'numero_facture' => $numeroFacture,
+            'client' => $row['client'] ?? null,
+            'vendeur' => $row['vendeur'] ?? null,
+            'total_valeur' => $totalValue,
+            'mode_de_paiement' => 'espece', // Default value
+            'observation' => null,
+        ]);
+
+        $this->processedInvoices[$numeroFacture] = true;
+    }
+
+    public function transformDate($value, $format = 'Y-m-d')
+    {
+        try {
+            return Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value));
+        } catch (\ErrorException $e) {
+            return Carbon::createFromFormat($format, $value);
+        }
+    }
+}

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Generate CA Excel</title>
+</head>
+<body>
+
+<button onclick="generateExcel()">Generate Excel (1000 lignes)</button>
+
+<!-- XLSX CDN -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<script>
+/* ================= HELPERS ================= */
+const randomInt = (min, max) =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
+
+const randomFloat = (min, max) =>
+  +(Math.random() * (max - min) + min).toFixed(2);
+
+const randomFromArray = (arr) =>
+  arr[Math.floor(Math.random() * arr.length)];
+
+const randomDate = () => {
+  const d = new Date(Date.now() - randomInt(0, 365) * 86400000);
+  return d.toISOString().split("T")[0];
+};
+
+const villes = ["Casablanca", "Rabat", "Tanger", "Fes", "Marrakech"];
+const secteurs = ["Nord", "Sud", "Centre"];
+const familles = ["Boisson", "Alimentaire", "Hygiene"];
+const categories = ["A", "B", "C","D","E","F","G","H"];
+const modesPaiement = ["Especes", "Cheque", "Virement", "Carte"];
+const canaux = ["Direct", "Indirect"];
+const distributeurs = ["Dis1", "Dis2", "Dis3"];
+const vendeurs = ["Ahmed", "Youssef", "Sara", "Khadija"];
+
+function generateRow(id) {
+  const qteCde = randomInt(1, 100);
+  const valeurCde = randomFloat(10, 500);
+  const qteFact = randomInt(0, qteCde);
+
+  return {
+    id: id,
+    date: randomDate(),
+    distributeur: randomFromArray(distributeurs),
+    canal: randomFromArray(canaux),
+    vendeur: randomFromArray(vendeurs),
+    code_client: "CL" + randomInt(1000, 9999),
+    client: ("Client " + id).substring(0, 50),
+    secteur: randomFromArray(secteurs),
+    tournee: "T" + randomInt(1, 20),
+    ville: randomFromArray(villes),
+    categorie_client: randomFromArray(categories),
+    numero_facture: "FAC" + randomInt(100000, 999999),
+    numero_livraison: "LIV" + randomInt(100000, 999999),
+    famille: randomFromArray(familles),
+    categorie: randomFromArray(categories),
+    code_article: "ART" + randomInt(100, 999),
+    designation: ("Produit " + randomInt(1, 50)).substring(0, 50),
+    qte_cde: qteCde,
+    valeur_cde: valeurCde,
+    qte_fact: qteFact,
+    valeur_fact: +(qteFact * valeurCde).toFixed(2),
+    qte_cde_retour: randomInt(0, 5),
+    valeur_cde_retour: randomFloat(0, 50),
+    qte_fact_retour: randomInt(0, 5),
+    valeur_fact_retour: randomFloat(0, 50),
+    gratuite: Math.random() > 0.8 ? 1 : 0, 
+    mode_de_paiement: randomFromArray(modesPaiement),
+    observation: "",
+    created_at: new Date().toISOString().slice(0, 19).replace("T", " "),
+    updated_at: new Date().toISOString().slice(0, 19).replace("T", " ")
+  };
+}
+
+function generateExcel() {
+  const data = [];
+  for (let i = 1; i <= 1000; i++) {
+    data.push(generateRow(i));
+  }
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "ca");
+
+  XLSX.writeFile(wb, "ca_1000_lignes.xlsx");
+}
+</script>
+
+</body>
+</html>

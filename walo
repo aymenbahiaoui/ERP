@@ -1,0 +1,8 @@
+{{-- @canany(['admin','dg','df','sup']) --}}
+   
+    <div class="bg-white rounded-2xl shadow-md p-4">
+        <h3 class="text-lg font-bold mb-4 text-teal-700">Top 5 Articles</h3>
+        <canvas id="articlesChart" height="300"></canvas>
+    </div>
+
+   {{-- @endcanany --}}
